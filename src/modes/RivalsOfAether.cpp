@@ -1,14 +1,15 @@
 #include "modes/RivalsOfAether.hpp"
 
-#define ANALOG_STICK_MIN 28
+#define ANALOG_STICK_MIN 1
 #define ANALOG_STICK_NEUTRAL 128
-#define ANALOG_STICK_MAX 228
+#define ANALOG_STICK_MAX 255
 
 RivalsOfAether::RivalsOfAether(socd::SocdType socd_type) {
-    _socd_pair_count = 4;
+    _socd_pair_count = 5;
     _socd_pairs = new socd::SocdPair[_socd_pair_count]{
-        socd::SocdPair{&InputState::left,    &InputState::right,   socd_type},
+        socd::SocdPair{ &InputState::left,   &InputState::right,   socd_type},
         socd::SocdPair{ &InputState::down,   &InputState::up,      socd_type},
+        socd::SocdPair{ &InputState::down,   &InputState::up2,     socd_type},
         socd::SocdPair{ &InputState::c_left, &InputState::c_right, socd_type},
         socd::SocdPair{ &InputState::c_down, &InputState::c_up,    socd_type},
     };
@@ -19,22 +20,13 @@ void RivalsOfAether::UpdateDigitalOutputs(InputState &inputs, OutputState &outpu
     outputs.b = inputs.b;
     outputs.x = inputs.x;
     outputs.y = inputs.y;
+    outputs.buttonL = inputs.lightshield;
     outputs.buttonR = inputs.z;
-    if (inputs.nunchuk_connected) {
-        // Lightshield with C button.
-        if (inputs.nunchuk_c) {
-            outputs.triggerLAnalog = 49;
-        }
-        outputs.triggerLDigital = inputs.nunchuk_z;
-    } else {
-        outputs.triggerLDigital = inputs.l;
-    }
+    outputs.triggerLDigital = inputs.l;
     outputs.triggerRDigital = inputs.r;
     outputs.start = inputs.start;
     outputs.select = inputs.select;
     outputs.home = inputs.home;
-    outputs.leftStickClick = inputs.lightshield;
-    outputs.rightStickClick = inputs.midshield;
 
     // Activate D-Pad layer by holding Mod X + Mod Y.
     if (inputs.mod_x && inputs.mod_y) {
@@ -43,6 +35,16 @@ void RivalsOfAether::UpdateDigitalOutputs(InputState &inputs, OutputState &outpu
         outputs.dpadLeft = inputs.c_left;
         outputs.dpadRight = inputs.c_right;
     }
+
+    // Activate select by holding Mod X
+    if ((inputs.mod_x)) outputs.select = inputs.start;
+
+    // Activate home by holding Mod Y
+    if ((inputs.mod_y)) outputs.home = inputs.start;
+
+    // Don't override dpad up if it's already pressed using the MX + MY dpad
+    // layer.
+    outputs.dpadUp = outputs.dpadUp || inputs.midshield;
 }
 
 void RivalsOfAether::UpdateAnalogOutputs(InputState &inputs, OutputState &outputs) {
@@ -51,7 +53,7 @@ void RivalsOfAether::UpdateAnalogOutputs(InputState &inputs, OutputState &output
         inputs.left,
         inputs.right,
         inputs.down,
-        inputs.up,
+        inputs.up || inputs.up2,
         inputs.c_left,
         inputs.c_right,
         inputs.c_down,
@@ -64,12 +66,9 @@ void RivalsOfAether::UpdateAnalogOutputs(InputState &inputs, OutputState &output
 
     bool shield_button_pressed = inputs.l || inputs.r;
 
-
-    // 48 total DI angles, 24 total Up b angles, 16 total airdodge angles
-
     if (inputs.mod_x) {
         if (directions.horizontal) {
-            outputs.leftStickX = 128 + (directions.x * 66);
+            outputs.leftStickX = 128 + (directions.x * 76);
             // MX Horizontal Tilts
             if (inputs.a) {
                 outputs.leftStickX = 128 + (directions.x * 44);
@@ -77,76 +76,87 @@ void RivalsOfAether::UpdateAnalogOutputs(InputState &inputs, OutputState &output
         }
 
         if(directions.vertical) {
-            outputs.leftStickY = 128 + (directions.y * 44);
-            // MX Vertical Tilts
-            if (inputs.a) {
-                outputs.leftStickY = 128 + (directions.y * 67);
-            }
+            outputs.leftStickY = 128 + (directions.y * 73);
         }
 
-        /* Extra DI, Air Dodge, and Up B angles */
         if (directions.diagonal) {
-            outputs.leftStickX = 128 + (directions.x * 59);
-            outputs.leftStickY = 128 + (directions.y * 23);
+            outputs.leftStickX = 128 + (directions.x * 70);
+            outputs.leftStickY = 128 + (directions.y * 34);
 
-            // Angles just for DI and Up B
-            if (inputs.c_down) {
-                outputs.leftStickX = 128 + (directions.x * 49);
-                outputs.leftStickY = 128 + (directions.y * 24);
+            // Angled F-tilts
+            if (inputs.a) {
+                outputs.leftStickX = 128 + (directions.x * 81);
+                outputs.leftStickY = 128 + (directions.y * 46);
             }
 
-            // Angles just for DI
-            if (inputs.c_left) {
-                outputs.leftStickX = 128 + (directions.x * 52);
+            /* Extra DI, Air Dodge, and Up B angles */
+
+            if (inputs.b) {
+                outputs.leftStickX = 128 + (directions.x * 85);
                 outputs.leftStickY = 128 + (directions.y * 31);
+            }
+
+            if (inputs.c_down) {
+                outputs.leftStickX = 128 + (directions.x * 75);
+                outputs.leftStickY = 128 + (directions.y * 33);
+            }
+
+            if (inputs.c_left) {
+                outputs.leftStickX = 128 + (directions.x * 109);
+                outputs.leftStickY = 128 + (directions.y * 65);
             }
       
             if (inputs.c_up) {
-                outputs.leftStickX = 128 + (directions.x * 49);
-                outputs.leftStickY = 128 + (directions.y * 35);
+                outputs.leftStickX = 128 + (directions.x * 100);
+                outputs.leftStickY = 128 + (directions.y * 72);
             }
      
             if (inputs.c_right) {
-                outputs.leftStickX = 128 + (directions.x * 51);
-                outputs.leftStickY = 128 + (directions.y * 43);
+                outputs.leftStickX = 128 + (directions.x * 94);
+                outputs.leftStickY = 128 + (directions.y * 79);
             }
         }
     }
 
     if (inputs.mod_y) {
         if (directions.horizontal) {
-            outputs.leftStickX = 128 + (directions.x * 44);
+            outputs.leftStickX = 128 + (directions.x * 41);
         }
 
         if(directions.vertical) {
-            outputs.leftStickY = 128 + (directions.y * 67);
+            outputs.leftStickY = 128 + (directions.y * 78);
         }
 
-        /* Extra DI, Air Dodge, and Up B angles */
         if (directions.diagonal) {
-            outputs.leftStickX = 128 + (directions.x * 44);
-            outputs.leftStickY = 128 + (directions.y * 113);
+            outputs.leftStickX = 128 + (directions.x * 41);
+            outputs.leftStickY = 128 + (directions.y * 76);
+
+            /* Extra DI, Air Dodge, and Up B angles */
+
+            if (inputs.b) {
+                outputs.leftStickX = 128 + (directions.x * 28);
+                outputs.leftStickY = 128 + (directions.y * 85);
+            }
 
             // Angles just for DI and Up B
             if (inputs.c_down) {
                 outputs.leftStickX = 128 + (directions.x * 44);
-                outputs.leftStickY = 128 + (directions.y * 90);
+                outputs.leftStickY = 128 + (directions.y * 106);
             }
 
-            // Angles just for DI
             if (inputs.c_left) {
-                outputs.leftStickX = 128 + (directions.x * 44);
-                outputs.leftStickY = 128 + (directions.y * 74);
+                outputs.leftStickX = 128 + (directions.x * 52);
+                outputs.leftStickY = 128 + (directions.y * 109);
             }
       
             if (inputs.c_up) {
-                outputs.leftStickX = 128 + (directions.x * 45);
-                outputs.leftStickY = 128 + (directions.y * 63);
+                outputs.leftStickX = 128 + (directions.x * 72);
+                outputs.leftStickY = 128 + (directions.y * 100);
             }
      
             if (inputs.c_right) {
-                outputs.leftStickX = 128 + (directions.x * 47);
-                outputs.leftStickY = 128 + (directions.y * 57);
+                outputs.leftStickX = 128 + (directions.x * 81);
+                outputs.leftStickY = 128 + (directions.y * 94);
             }
         }
     }
@@ -155,6 +165,11 @@ void RivalsOfAether::UpdateAnalogOutputs(InputState &inputs, OutputState &output
     if (inputs.mod_x && inputs.mod_y) {
         outputs.rightStickX = 128;
         outputs.rightStickY = 128;
+    }
+
+    // Turns off Start when holding Mod X or Mod Y
+    if ((inputs.mod_x || inputs.mod_y)) {
+        outputs.start = false;
     }
 
     // Nunchuk overrides left stick.
